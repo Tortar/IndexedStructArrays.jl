@@ -12,4 +12,5 @@ using Aqua, Test
     end
 
     include("test-dict.jl")
+    include("test-slotmap.jl")
 end

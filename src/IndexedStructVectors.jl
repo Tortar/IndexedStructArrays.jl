@@ -2,7 +2,7 @@ module IndexedStructVectors
 
 using Unrolled
 
-export IndexedStructVector, getfields, id, isvalid
+export IndexedStructVector, SlotMapStructVector, getfields, id, isvalid
 
 function remove!(a, i)
     @inbounds a[i], a[end] = a[end], a[i]
@@ -69,5 +69,6 @@ function Base.show(io::IO, ::MIME"text/plain", x::IndexedView)
 end
 
 include("dict.jl")
+include("slotmap.jl")
 
 end
