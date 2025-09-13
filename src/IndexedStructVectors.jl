@@ -25,45 +25,47 @@ struct IndexedView{S}
     isv::S
 end
 
-id(a::IndexedView) = getfield(a, :id)
-
-isvalid(a::IndexedView) = a in getfield(a, :isv)
-
-@inline function Base.getproperty(a::IndexedView, name::Symbol)
-    id, isv = getfield(a, :id), getfield(a, :isv)
-    comps = getfield(isv, :components)
-    f = getfield(comps, name)
-    lasti = getfield(a, :lasti)
-    i = id_guess_to_index(isv, id, lasti)
-    @inbounds f[i]
+struct IndexedRefView{S}
+    lasti::Base.RefValue{Int}
+    isv::S
 end
 
-@inline function Base.setproperty!(a::IndexedView, name::Symbol, x)
-    id, isv = getfield(a, :id), getfield(a, :isv)
+
+id(a::IndexedRefView) = getfield(getfield(a, :isv), :id)[getfield(a, :lasti)[]]
+
+isvalid(a::IndexedRefView) = a in getfield(a, :isv)
+
+@inline function Base.getproperty(a::IndexedRefView, name::Symbol)
+    isv = getfield(a, :isv)
     comps = getfield(isv, :components)
     f = getfield(comps, name)
-    lasti = getfield(a, :lasti)
-    i = id_guess_to_index(isv, id, lasti)
-    return (@inbounds f[i] = x)
+    lasti = getfield(a, :lasti)[]
+    @inbounds f[lasti]
 end
 
-@inline function getfields(a::IndexedView)
-    id, isv = getfield(a, :id), getfield(a, :isv)
+@inline function Base.setproperty!(a::IndexedRefView, name::Symbol, x)
+    isv = getfield(a, :isv)
     comps = getfield(isv, :components)
-    lasti = getfield(a, :lasti)
-    i = id_guess_to_index(isv, id, lasti)
+    f = getfield(comps, name)
+    lasti = getfield(a, :lasti)[]
+    return (@inbounds f[lasti] = x)
+end
+
+@inline function getfields(a::IndexedRefView)
+    isv = getfield(a, :isv)
+    comps = getfield(isv, :components)
+    i = getfield(a, :lasti)[]
     getindexi = ar -> @inbounds ar[i]
-    vals = unrolled_map(getindexi, values(comps)[2:end])
-    names = fieldnames(typeof(comps))[2:end]
+    vals = unrolled_map(getindexi, values(comps))
+    names = fieldnames(typeof(comps))
     return NamedTuple{names}(vals)
 end
 
-function Base.show(io::IO, ::MIME"text/plain", x::IndexedView)
+function Base.show(io::IO, ::MIME"text/plain", x::IndexedRefView)
     !isvalid(x) && return print(io, "InvalidIndexView(ID = $(getfield(x, :id)))")
-    id, isv = getfield(x, :id), getfield(x, :isv)
+    isv, id = getfield(x, :isv), id(x)
     comps = getfield(isv, :components)
-    lasti = getfield(x, :lasti)
-    i = id_guess_to_index(isv, id, lasti)
+    i = getfield(x, :lasti)[]
     fields = NamedTuple(y => getfield(comps, y)[i] for y in fieldnames(typeof(comps)))
     return print(io, "IndexedView$fields")
 end
